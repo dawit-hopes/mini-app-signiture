@@ -1,0 +1,7 @@
+bin/
+pkg/
+# If you build an executable named after the folder
+payment-security
+*.exe
+*.test
+*.out
