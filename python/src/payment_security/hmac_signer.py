@@ -1,6 +1,7 @@
 import hmac
 import hashlib
 import canonicaljson
+import os
 
 def sign_payload_hmac(body, secret):
     # 1. Canonical JSON Stringification (Sorted keys, no extra spaces)
@@ -17,11 +18,38 @@ def sign_payload_hmac(body, secret):
 
 # --- TEST ---
 if __name__ == "__main__":
+    # Read environment variables
+    secret = os.getenv("HMAC_SECRET")
+    app_code = os.getenv("APP_CODE", "")
+    merchant_code = os.getenv("MERCHANT_CODE", "")
+    merchant_reference = os.getenv("MERCHANT_REFERENCE", "")
+    title = os.getenv("TITLE", "")
+    total_amount = os.getenv("TOTAL_AMOUNT", "0")
+    currency = os.getenv("CURRENCY", "")
+    credit_account_number = os.getenv("CREDIT_ACCOUNT_NUMBER", "")
+    
+    # Validate required environment variables
+    if not secret:
+        print("❌ Error: HMAC_SECRET not set in environment")
+        exit(1)
+    
+    # Build the content object
     content = {
-        "app_code": "015489",
-        "merchant_code": "MINIMRC-7914388979",
-        "total_amount": 5,
-        "currency": "ETB"
+        "app_code": app_code,
+        "merchant_code": merchant_code,
+        "merchant_reference": merchant_reference,
+        "title": title,
+        "total_amount": int(total_amount) if total_amount.isdigit() else total_amount,
+        "currency": currency,
+        "credit_account_number": credit_account_number
     }
-    my_secret = "yuTqIYiOwhTA+ssH8cPZBJ8DZT8fprRbTodpncAn3oseMPDLx256iNENhQREsdKnDrEXfGwR7n2moCDxOWpQTteq4NUiVNmU"
-    print(f"HMAC Signature: {sign_payload_hmac(content, my_secret)}")
+    
+    # Generate signature
+    sig = sign_payload_hmac(content, secret)
+    
+    # Get JSON string for payload export
+    json_payload = canonicaljson.encode_canonical_json(content).decode('utf-8')
+    
+    print(f"HMAC Signature: {sig}")
+    print(f"export SIGNATURE={sig}")
+    print(f"export PAYLOAD='{json_payload}'")

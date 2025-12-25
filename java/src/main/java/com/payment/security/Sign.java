@@ -51,24 +51,46 @@ public class Sign {
     // ✅ ACTUAL METHOD CALL IMPLEMENTATION
     // ====================================================================
     public static void main(String[] args) {
-        // 1. Define the Content Object (Your Payload)
-        // Using a Map to represent the JSON object
-        Map<String, Object> contentToSign = new HashMap<>();
-        contentToSign.put("app_code", "015489");
-        contentToSign.put("merchant_code", "MINIMRC-7914388979");
-        contentToSign.put("merchant_reference", "txn-2345");
-        contentToSign.put("title", "Forget the church");
-        contentToSign.put("total_amount", 5);
-        contentToSign.put("currency", "ETB");
-        contentToSign.put("credit_account_number", "");
+        // 1. Read Environment Variables
+        String privateKeyBase64 = System.getenv("ED25519_PRIVATE_KEY");
+        String appCode = System.getenv("APP_CODE");
+        String merchantCode = System.getenv("MERCHANT_CODE");
+        String merchantReference = System.getenv("MERCHANT_REFERENCE");
+        String title = System.getenv("TITLE");
+        String totalAmountStr = System.getenv("TOTAL_AMOUNT");
+        String currency = System.getenv("CURRENCY");
+        String creditAccountNumber = System.getenv("CREDIT_ACCOUNT_NUMBER");
 
-        // 2. Define the Private Key
-        // ⚠️ IMPORTANT: YOU MUST REPLACE THIS WITH YOUR ACTUAL BASE64 PRIVATE KEY.
-        String MY_PRIVATE_KEY_BASE64 = "bv2DsjDN/xvx1Jrpmx1SWNPcVW44lkvWnLgRNlWhKMTYXbpwY3e6OKA2f3e9DhwjdDJ5Pok2x0RTi3+Hx8IhjA==";
+        // Validate environment variables
+        if (privateKeyBase64 == null || privateKeyBase64.isEmpty()) {
+            System.err.println("❌ Error: ED25519_PRIVATE_KEY not set in environment");
+            System.exit(1);
+        }
+
+        // 2. Build the Content Object from environment variables
+        Map<String, Object> contentToSign = new HashMap<>();
+        contentToSign.put("app_code", appCode != null ? appCode : "");
+        contentToSign.put("merchant_code", merchantCode != null ? merchantCode : "");
+        contentToSign.put("merchant_reference", merchantReference != null ? merchantReference : "");
+        contentToSign.put("title", title != null ? title : "");
+        
+        // Try to parse total_amount as a number if possible
+        if (totalAmountStr != null && !totalAmountStr.isEmpty()) {
+            try {
+                contentToSign.put("total_amount", Integer.parseInt(totalAmountStr));
+            } catch (NumberFormatException e) {
+                contentToSign.put("total_amount", totalAmountStr);
+            }
+        } else {
+            contentToSign.put("total_amount", 0);
+        }
+        
+        contentToSign.put("currency", currency != null ? currency : "");
+        contentToSign.put("credit_account_number", creditAccountNumber != null ? creditAccountNumber : "");
 
         try {
             // 3. Call the Method
-            String signature = generateSignature(contentToSign, MY_PRIVATE_KEY_BASE64);
+            String signature = generateSignature(contentToSign, privateKeyBase64);
 
             // 4. Output the Result
             System.out.println("--- Input Content ---");
@@ -78,14 +100,20 @@ public class Sign {
             // Re-generate json string purely for display to match Node script output
             ObjectMapper displayMapper = new ObjectMapper();
             displayMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-            System.out.println("JSON String to Sign: " + displayMapper.writeValueAsString(contentToSign));
+            String jsonString = displayMapper.writeValueAsString(contentToSign);
+            System.out.println("JSON String to Sign: " + jsonString);
             
             System.out.println("---------------------");
             System.out.println("✅ Generated Signature: " + signature);
+            
+            // Export to environment (for child processes)
+            System.out.println("export SIGNATURE=" + signature);
+            System.out.println("export PAYLOAD='" + jsonString.replace("'", "'\\''") + "'");
 
         } catch (Exception e) {
             System.err.println("❌ Error generating signature: " + e.getMessage());
             e.printStackTrace();
+            System.exit(1);
         }
     }
 }

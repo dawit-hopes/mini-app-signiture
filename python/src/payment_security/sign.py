@@ -1,5 +1,6 @@
 import base64
 import canonicaljson
+import os
 from nacl.signing import SigningKey
 
 def generate_signature(content, private_key_base64):
@@ -21,17 +22,38 @@ def generate_signature(content, private_key_base64):
     return base64.b64encode(signed.signature).decode('utf-8')
 
 if __name__ == "__main__":
-    content = {
-        "app_code": "015489",
-        "merchant_code": "MINIMRC-7914388979",
-        "merchant_reference": "txn-2345",
-        "title": "Forget the church",
-        "total_amount": 5,
-        "currency": "ETB",
-        "credit_account_number": ""
-    }
-    # Placeholder 64-byte private key
-    priv_key = "bv2DsjDN/xvx1Jrpmx1SWNPcVW44lkvWnLgRNlWhKMTYXbpwY3e6OKA2f3e9DhwjdDJ5Pok2x0RTi3+Hx8IhjA=="
+    # Read environment variables
+    priv_key = os.getenv("ED25519_PRIVATE_KEY")
+    app_code = os.getenv("APP_CODE", "")
+    merchant_code = os.getenv("MERCHANT_CODE", "")
+    merchant_reference = os.getenv("MERCHANT_REFERENCE", "")
+    title = os.getenv("TITLE", "")
+    total_amount = os.getenv("TOTAL_AMOUNT", "0")
+    currency = os.getenv("CURRENCY", "")
+    credit_account_number = os.getenv("CREDIT_ACCOUNT_NUMBER", "")
     
+    # Validate required environment variables
+    if not priv_key:
+        print("❌ Error: ED25519_PRIVATE_KEY not set in environment")
+        exit(1)
+    
+    # Build the content object
+    content = {
+        "app_code": app_code,
+        "merchant_code": merchant_code,
+        "merchant_reference": merchant_reference,
+        "title": title,
+        "total_amount": int(total_amount) if total_amount.isdigit() else total_amount,
+        "currency": currency,
+        "credit_account_number": credit_account_number
+    }
+    
+    # Generate signature
     sig = generate_signature(content, priv_key)
+    
+    # Get JSON string for payload export
+    json_payload = canonicaljson.encode_canonical_json(content).decode('utf-8')
+    
     print(f"✅ Python Ed25519 Signature: {sig}")
+    print(f"export SIGNATURE={sig}")
+    print(f"export PAYLOAD='{json_payload}'")

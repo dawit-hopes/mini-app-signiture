@@ -8,12 +8,12 @@ all: build
 build:
 	mvn clean package
 
-# 2. Run the Ed25519 Signer
-sign:
+# 2. Run the Ed25519 Signer (exports SIGNATURE and PAYLOAD env vars)
+sign: build
 	mvn exec:java -Dexec.mainClass="$(GROUP_PATH).Sign"
 
-# 3. Run the HMAC Signer
-hmac:
+# 3. Run the HMAC Signer (exports SIGNATURE and PAYLOAD env vars)
+hmac: build
 	mvn exec:java -Dexec.mainClass="$(GROUP_PATH).HmacSigner"
 
 # 4. Clean only
