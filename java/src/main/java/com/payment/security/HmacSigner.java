@@ -54,26 +54,62 @@ public class HmacSigner {
     // ✅ TEST
     // ==========================================
     public static void main(String[] args) {
-        // 1. Define the Content
-        Map<String, Object> contentToSign = new HashMap<>();
-        contentToSign.put("app_code", "015489");
-        contentToSign.put("merchant_code", "MINIMRC-7914388979");
-        contentToSign.put("merchant_reference", "txn-2345");
-        contentToSign.put("title", "Forget the church");
-        contentToSign.put("total_amount", 5);
-        contentToSign.put("currency", "ETB");
-        contentToSign.put("credit_account_number", "");
+        // 1. Read Environment Variables
+        String secret = System.getenv("HMAC_SECRET");
+        String appCode = System.getenv("APP_CODE");
+        String merchantCode = System.getenv("MERCHANT_CODE");
+        String merchantReference = System.getenv("MERCHANT_REFERENCE");
+        String title = System.getenv("TITLE");
+        String totalAmountStr = System.getenv("TOTAL_AMOUNT");
+        String currency = System.getenv("CURRENCY");
+        String creditAccountNumber = System.getenv("CREDIT_ACCOUNT_NUMBER");
 
-        String mySecret = "yuTqIYiOwhTA+ssH8cPZBJ8DZT8fprRbTodpncAn3oseMPDLx256iNENhQREsdKnDrEXfGwR7n2moCDxOWpQTteq4NUiVNmU";
+        // Validate environment variables
+        if (secret == null || secret.isEmpty()) {
+            System.err.println("❌ Error: HMAC_SECRET not set in environment");
+            System.exit(1);
+        }
+
+        // 2. Build the Content Object from environment variables
+        Map<String, Object> contentToSign = new HashMap<>();
+        contentToSign.put("app_code", appCode != null ? appCode : "");
+        contentToSign.put("merchant_code", merchantCode != null ? merchantCode : "");
+        contentToSign.put("merchant_reference", merchantReference != null ? merchantReference : "");
+        contentToSign.put("title", title != null ? title : "");
+        
+        // Try to parse total_amount as a number if possible
+        if (totalAmountStr != null && !totalAmountStr.isEmpty()) {
+            try {
+                contentToSign.put("total_amount", Integer.parseInt(totalAmountStr));
+            } catch (NumberFormatException e) {
+                contentToSign.put("total_amount", totalAmountStr);
+            }
+        } else {
+            contentToSign.put("total_amount", 0);
+        }
+        
+        contentToSign.put("currency", currency != null ? currency : "");
+        contentToSign.put("credit_account_number", creditAccountNumber != null ? creditAccountNumber : "");
 
         try {
-            String signature = signPayloadHMAC(contentToSign, mySecret);
+            String signature = signPayloadHMAC(contentToSign, secret);
 
+            // Get JSON string for output
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+            String jsonString = mapper.writeValueAsString(contentToSign);
+            
             System.out.println("Payload: " + contentToSign);
             System.out.println("HMAC Signature: " + signature);
             
+            // Export to environment (for child processes)
+            System.out.println("export SIGNATURE=" + signature);
+            System.out.println("export PAYLOAD='" + jsonString.replace("'", "'\\''") + "'");
+            
         } catch (Exception e) {
+            System.err.println("❌ Error generating HMAC signature: " + e.getMessage());
             e.printStackTrace();
+            System.exit(1);
         }
     }
 }
